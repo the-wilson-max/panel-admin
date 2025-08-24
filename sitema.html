@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inventario - Bland Farms</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card-header {
+            border-radius: 10px 10px 0 0 !important;
+            font-weight: bold;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+        }
+        .nav-tabs .nav-link {
+            color: var(--primary-color);
+        }
+        .table th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #1a252f;
+        }
+        .btn-success {
+            background-color: var(--success-color);
+            border: none;
+        }
+        .stock-low {
+            background-color: #ffe6e6;
+        }
+        .stock-zero {
+            background-color: #ffcccc;
+            font-weight: bold;
+        }
+        .stock-ok {
+            background-color: #e6ffe6;
+        }
+        .modal-header {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .dashboard-card {
+            text-align: center;
+            padding: 15px;
+        }
+        .dashboard-number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .alert-stock {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .sidebar {
+            background-color: #f5f5f5;
+            border-right: 1px solid #ddd;
+            height: 100vh;
+            padding-top: 20px;
+            position: fixed;
+            left: 0;
+            width: 250px;
+            overflow-y: auto;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: 0.5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .sidebar .nav-link {
+            color: #333;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 5px 10px;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .section {
+            display: none;
+        }
+        .section.active {
+            display: block;
+        }
+        .movimiento-item {
+            border-left: 4px solid var(--secondary-color);
+            padding-left: 10px;
+            margin-bottom: 10px;
+        }
+        .movimiento-entrada {
+            border-left-color: var(--success-color);
+        }
+        .movimiento-salida {
+            border-left-color: var(--danger-color);
+        }
+        #dropZone {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+        #dropZone:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="text-center mb-4">
+            <h4 class="mt-3">BLAND FARMS</h4>
+            <p class="text-muted">Sistema de Inventario</p>
+        </div>
+        <div class="sidebar-sticky">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#" data-section="dashboard">
+                        <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="inventario">
+                        <i class="fas fa-warehouse me-2"></i> Inventario
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="movimientos">
+                        <i class="fas fa-exchange-alt me-2"></i> Movimientos
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="productos">
+                        <i class="fas fa-box me-2"></i> Productos
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="reportes">
+                        <i class="fas fa-chart-bar me-2"></i> Reportes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="alertas">
+                        <i class="fas fa-bell me-2"></i> Alertas
+                        <span class="badge bg-danger ms-2" id="alertCount">0</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="configuracion">
+                        <i class="fas fa-cog me-2"></i> Configuración
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header text-center">
+            <h1><i class="fas fa-warehouse me-2"></i>STOCK BLAND FARMS</h1>
+            <p class="lead">Sistema de Gestión de Inventario</p>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="section active">
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <i class="fas fa-warehouse fa-2x text-primary"></i>
+                            <h5 class="mt-2">Total Productos</h5>
+                            <div class="dashboard-number text-primary" id="totalProductos">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <i class="fas fa-box-open fa-2x text-success"></i>
+                            <h5 class="mt-2">Stock Total</h5>
+                            <div class="dashboard-number text-success" id="totalStock">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                            <h5 class="mt-2">Stock Bajo</h5>
+                            <div class="dashboard-number text-warning" id="stockBajo">0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <i class="fas fa-times-circle fa-2x text-danger"></i>
+                            <h5 class="mt-2">Stock Agotado</h5>
+                            <div class="dashboard-number text-danger" id="stockCero">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <i class="fas fa-chart-pie me-2"></i>Distribución de Stock por Categoría
+                        </div>
+                        <div class="card-body">
+                            <canvas id="categoriaChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <i class="fas fa-chart-line me-2"></i>Movimientos Mensuales
+                        </div>
+                        <div class="card-body">
+                            <canvas id="movimientosChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <i class="fas fa-exclamation-circle me-2"></i>Alertas Recientes
+                        </div>
+                        <div class="card-body" id="alertasDashboard">
+                            <p class="text-center">No hay alertas en este momento</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventario Section -->
+        <div id="inventario" class="section">
+            <ul class="nav nav-tabs mb-4" id="inventarioTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="convencional-tab" data-bs-toggle="tab" 
+                            data-bs-target="#convencional" type="button" role="tab">
+                        <i class="fas fa-tractor me-1"></i> Convencional
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="organico-tab" data-bs-toggle="tab" 
+                            data-bs-target="#organico" type="button" role="tab">
+                        <i class="fas fa-leaf me-1"></i> Orgánico
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="inventarioTabContent">
+                <!-- Pestaña Convencional -->
+                <div class="tab-pane fade show active" id="convencional" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Buscar producto..." id="searchConvencional">
+                                <button class="btn btn-outline-secondary" type="button" id="btnSearchConvencional">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-success me-2" id="btnImportConvencional">
+                                <i class="fas fa-file-import me-1"></i> Importar CSV
+                            </button>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalMovimientoMultiple" data-tipo="convencional">
+                                <i class="fas fa-plus me-1"></i> Múltiples Movimientos
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-list me-2"></i>Inventario Convencional</span>
+                            <div>
+                                <button class="btn btn-sm btn-light me-2" data-bs-toggle="modal" data-bs-target="#modalMovimiento" data-tipo="convencional">
+                                    <i class="fas fa-plus me-1"></i> Nuevo Movimiento
+                                </button>
+                                <button class="btn btn-sm btn-light" onclick="exportToCSV('convencional')">
+                                    <i class="fas fa-file-export me-1"></i> Exportar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="tablaConvencional">
+                                    <thead>
+                                        <tr>
+                                            <th>CÓDIGO</th>
+                                            <th>PRODUCTO</th>
+                                            <th>U/M</th>
+                                            <th>INGREDIENTE ACTIVO</th>
+                                            <th>STOCK ACTUAL</th>
+                                            <th>STOCK MÍN</th>
+                                            <th>STOCK MÁX</th>
+                                            <th>ESTADO</th>
+                                            <th>ACCIONES</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbodyConvencional">
+                                        <!-- Los datos se cargarán dinámicamente -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="loadingConvencional" class="text-center mt-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Cargando inventario convencional...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Orgánico -->
+                <div class="tab-pane fade" id="organico" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Buscar producto..." id="searchOrganico">
+                                <button class="btn btn-outline-secondary" type="button" id="btnSearchOrganico">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-success me-2" id="btnImportOrganico">
+                                <i class="fas fa-file-import me-1"></i> Importar CSV
+                            </button>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalMovimientoMultiple" data-tipo="organico">
+                                <i class="fas fa-plus me-1"></i> Múltiples Movimientos
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-list me-2"></i>Inventario Orgánico</span>
+                            <div>
+                                <button class="btn btn-sm btn-light me-2" data-bs-toggle="modal" data-bs-target="#modalMovimiento" data-tipo="organico">
+                                    <i class="fas fa-plus me-1"></i> Nuevo Movimiento
+                                </button>
+                                <button class="btn btn-sm btn-light" onclick="exportToCSV('organico')">
+                                    <i class="fas fa-file-export me-1"></i> Exportar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="tablaOrganico">
+                                    <thead>
+                                        <tr>
+                                            <th>CÓDIGO</th>
+                                            <th>PRODUCTO</th>
+                                            <th>U/M</th>
+                                            <th>INGREDIENTE ACTIVO</th>
+                                            <th>STOCK ACTUAL</th>
+                                            <th>STOCK MÍN</th>
+                                            <th>STOCK MÁX</th>
+                                            <th>DIFERENCIAS</th>
+                                            <th>ESTADO</th>
+                                            <th>ACCIONES</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbodyOrganico">
+                                        <!-- Los datos se cargarán dinámicamente -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="loadingOrganico" class="text-center mt-4">
+                                <div class="spinner-border text-success" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                                <p class="mt-2">Cargando inventario orgánico...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Otras secciones (Movimientos, Productos, Reportes, Alertas, Configuración) -->
+        <div id="movimientos" class="section">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-exchange-alt me-2"></i>Gestión de Movimientos
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Buscar movimiento..." id="searchMovimientos">
+                                <button class="btn btn-outline-secondary" type="button" id="btnSearchMovimientos">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select" id="filterTipoMovimiento">
+                                <option value="">Todos los tipos</option>
+                                <option value="entrada">Entradas</option>
+                                <option value="salida">Salidas</option>
+                                <option value="ajuste">Ajustes</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select" id="filterAlmacenMovimiento">
+                                <option value="">Todos los almacenes</option>
+                                <option value="convencional">Convencional</option>
+                                <option value="organico">Orgánico</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="tablaMovimientos">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Almacén</th>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Usuario</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Los movimientos se cargarán dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="productos" class="section">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <i class="fas fa-box me-2"></i>Gestión de Productos
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="Buscar producto..." id="searchProductos">
+                                <button class="btn btn-outline-secondary" type="button" id="btnSearchProductos">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalProducto">
+                                <i class="fas fa-plus me-1"></i> Nuevo Producto
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="tablaProductos">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Categoría</th>
+                                    <th>U/M</th>
+                                    <th>Almacén</th>
+                                    <th>Stock Actual</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Los productos se cargarán dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="reportes" class="section">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="fas fa-chart-bar me-2"></i>Reportes y Estadísticas
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <select class="form-select" id="reportType">
+                                <option value="stock">Reporte de Stock</option>
+                                <option value="movimientos">Reporte de Movimientos</option>
+                                <option value="vencimientos">Reporte de Vencimientos</option>
+                                <option value="consumo">Reporte de Consumo</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="reportAlmacen">
+                                <option value="">Todos los almacenes</option>
+                                <option value="convencional">Convencional</option>
+                                <option value="organico">Orgánico</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" class="form-control" id="reportDateFrom">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="date" class="form-control" id="reportDateTo">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 text-end mb-3">
+                            <button class="btn btn-success" onclick="generateReport()">
+                                <i class="fas fa-download me-1"></i> Generar Reporte
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div id="reportContent">
+                                <p class="text-center text-muted">Seleccione los filtros y genere un reporte</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="alertas" class="section">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <i class="fas fa-bell me-2"></i>Alertas y Notificaciones
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <select class="form-select" id="filterAlertaTipo">
+                                <option value="">Todos los tipos</option>
+                                <option value="stock-bajo">Stock Bajo</option>
+                                <option value="stock-cero">Stock Agotado</option>
+                                <option value="vencimiento">Próximo a Vencer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-outline-danger" onclick="markAllAlertsAsRead()">
+                                <i class="fas fa-check-double me-1"></i> Marcar todas como leídas
+                            </button>
+                        </div>
+                    </div>
+                    <div id="alertasList">
+                        <!-- Las alertas se cargarán dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="configuracion" class="section">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <i class="fas fa-cog me-2"></i>Configuración del Sistema
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">Parámetros del Sistema</div>
+                                <div class="card-body">
+                                    <form id="configForm">
+                                        <div class="mb-3">
+                                            <label for="umbralStockBajo" class="form-label">Umbral para stock bajo (%)</label>
+                                            <input type="number" class="form-control" id="umbralStockBajo" min="1" max="100" value="20">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="diasAlertaVencimiento" class="form-label">Días para alerta de vencimiento</label>
+                                            <input type="number" class="form-control" id="diasAlertaVencimiento" min="1" value="30">
+                                        </div>
+                                        <div class="mb-3 form-check">
+                                            <input type="checkbox" class="form-check-input" id="alertasCorreo">
+                                            <label class="form-check-label" for="alertasCorreo">Enviar alertas por correo</label>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" onclick="saveConfig()">Guardar Configuración</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">Respaldos y Restauración</div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Crear respaldo de datos</label>
+                                        <button class="btn btn-success w-100 mb-3" onclick="createBackup()">
+                                            <i class="fas fa-download me-1"></i> Crear Respaldo
+                                        </button>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Restaurar desde respaldo</label>
+                                        <div id="dropZone" class="mb-3" onclick="document.getElementById('fileInput').click()">
+                                            <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
+                                            <p>Haga clic o arrastre un archivo de respaldo aquí</p>
+                                            <input type="file" id="fileInput" style="display: none;" accept=".json" onchange="handleFileSelect(this.files)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    <!-- Modal para movimiento único -->
+    <div class="modal fade" id="modalMovimiento" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Movimiento de Inventario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formMovimiento">
+                        <input type="hidden" id="movimientoTipoAlmacen">
+                        <div class="mb-3">
+                            <label for="tipoMovimiento" class="form-label">Tipo de Movimiento</label>
+                            <select class="form-select" id="tipoMovimiento" required>
+                                <option value="entrada">Entrada</option>
+                                <option value="salida">Salida</option>
+                                <option value="ajuste">Ajuste</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="selectProducto" class="form-label">Producto</label>
+                            <select class="form-select" id="selectProducto" required>
+                                <option value="">Seleccione un producto</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cantidad" class="form-label">Cantidad</label>
+                            <input type="number" step="0.001" class="form-control" id="cantidad" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fecha" class="form-label">Fecha</label>
+                            <input type="datetime-local" class="form-control" id="fecha" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="comentario" class="form-label">Comentario</label>
+                            <textarea class="form-control" id="comentario" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnGuardarMovimiento">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para múltiples movimientos -->
+    <div class="modal fade" id="modalMovimientoMultiple" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Múltiples Movimientos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formMovimientoMultiple">
+                        <input type="hidden" id="movimientoMultipleTipoAlmacen">
+                        <div class="mb-3">
+                            <label for="tipoMovimientoMultiple" class="form-label">Tipo de Movimiento</label>
+                            <select class="form-select" id="tipoMovimientoMultiple" required>
+                                <option value="entrada">Entrada</option>
+                                <option value="salida">Salida</option>
+                                <option value="ajuste">Ajuste</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fechaMultiple" class="form-label">Fecha</label>
+                            <input type="datetime-local" class="form-control" id="fechaMultiple" required>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tablaMovimientosMultiple">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Cantidad</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <select class="form-select select-producto-multiple" required>
+                                                <option value="">Seleccione un producto</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input type="number" step="0.001" class="form-control" required>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-danger btn-sm" onclick="removeMovementRow(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <button type="button" class="btn btn-success btn-sm" onclick="addMovementRow()">
+                            <i class="fas fa-plus me-1"></i> Agregar Producto
+                        </button>
+                        
+                        <div class="mb-3 mt-3">
+                            <label for="comentarioMultiple" class="form-label">Comentario General</label>
+                            <textarea class="form-control" id="comentarioMultiple" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnGuardarMovimientoMultiple">Guardar Todos</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para producto -->
+    <div class="modal fade" id="modalProducto" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Gestionar Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formProducto">
+                        <input type="hidden" id="productoId">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="codigoProducto" class="form-label">Código</label>
+                                    <input type="text" class="form-control" id="codigoProducto" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="nombreProducto" class="form-label">Nombre</label>
+                                    <input type="text" class="form-control" id="nombreProducto" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="categoriaProducto" class="form-label">Categoría</label>
+                                    <select class="form-select" id="categoriaProducto" required>
+                                        <option value="">Seleccione una categoría</option>
+                                        <option value="herbicida">Herbicida</option>
+                                        <option value="fungicida">Fungicida</option>
+                                        <option value="insecticida">Insecticida</option>
+                                        <option value="fertilizante">Fertilizante</option>
+                                        <option value="regulador">Regulador de Crecimiento</option>
+                                        <option value="coadyuvante">Coadyuvante</option>
+                                        <option value="otro">Otro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="unidadProducto" class="form-label">Unidad de Medida</label>
+                                    <select class="form-select" id="unidadProducto" required>
+                                        <option value="">Seleccione una unidad</option>
+                                        <option value="LTR">Litro (LTR)</option>
+                                        <option value="KGM">Kilogramo (KGM)</option>
+                                        <option value="GRM">Gramo (GRM)</option>
+                                        <option value="UN">Unidad (UN)</option>
+                                        <option value="CJA">Caja (CJA)</option>
+                                        <option value="BOL">Bolsa (BOL)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="almacenProducto" class="form-label">Almacén</label>
+                                    <select class="form-select" id="almacenProducto" required>
+                                        <option value="">Seleccione un almacén</option>
+                                        <option value="convencional">Convencional</option>
+                                        <option value="organico">Orgánico</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="ingredienteProducto" class="form-label">Ingrediente Activo</label>
+                                    <input type="text" class="form-control" id="ingredienteProducto">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="stockMinProducto" class="form-label">Stock Mínimo</label>
+                                    <input type="number" step="0.001" class="form-control" id="stockMinProducto" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="stockMaxProducto" class="form-label">Stock Máximo</label>
+                                    <input type="number" step="0.001" class="form-control" id="stockMaxProducto" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="stockInicialProducto" class="form-label">Stock Inicial</label>
+                                    <input type="number" step="0.001" class="form-control" id="stockInicialProducto" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="proveedorProducto" class="form-label">Proveedor</label>
+                            <input type="text" class="form-control" id="proveedorProducto">
+                        </div>
+                        <div class="mb-3">
+                            <label for="descripcionProducto" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="descripcionProducto" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnGuardarProducto">Guardar Producto</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Datos de ejemplo para inicializar la aplicación
+        const productosConvencional = [
+            { codigo: "P01ANB001", nombre: "ABINSETE", unidad: "LTR", ingrediente: "", stock: 0.5, stockMin: 1, stockMax: 10 },
+            { codigo: "P01ABS001", nombre: "ABSOLUTE BBSC", unidad: "LT", ingrediente: "", stock: 9.45, stockMin: 2, stockMax: 20 },
+            { codigo: "P01ACA001", nombre: "ACADIAN", unidad: "LTR", ingrediente: "", stock: 0, stockMin: 1, stockMax: 15 },
+            { codigo: "P01ACE001", nombre: "ACEGOAL XTRA", unidad: "KGM", ingrediente: "", stock: 1.3, stockMin: 0.5, stockMax: 5 },
+            { codigo: "P01ACI001", nombre: "ACID PH5", unidad: "LTR", ingrediente: "", stock: 26.35, stockMin: 5, stockMax: 30 },
+            { codigo: "P01ACI003", nombre: "ACIDOR PLUS", unidad: "LTR", ingrediente: "", stock: 6.456, stockMin: 2, stockMax: 15 },
+            { codigo: "P01ACT004", nombre: "ACTIVA 4B", unidad: "LTR", ingrediente: "", stock: 20, stockMin: 5, stockMax: 25 }
+        ];
+
+        const productosOrganico = [
+            { codigo: "P01ACA001", nombre: "ACADIAN ORGANIC", unidad: "LTR", ingrediente: "", stock: 4.05, diferencias: -4.05, stockFinal: 0, stockMin: 2, stockMax: 20 },
+            { codigo: "P01AC1003", nombre: "ACIDOR PLUS", unidad: "LTR", ingrediente: "", stock: 2.158, diferencias: 0.536, stockFinal: 2.694, stockMin: 1, stockMax: 10 },
+            { codigo: "P01ALG007", nombre: "ALGARIUM", unidad: "LTR", ingrediente: "", stock: 15, diferencias: 0, stockFinal: 15, stockMin: 5, stockMax: 30 },
+            { codigo: "P01ALG003", nombre: "ALGAS 6D", unidad: "LTR", ingrediente: "", stock: 0.6, diferencias: 0, stockFinal: 0.6, stockMin: 1, stockMax: 10 },
+            { codigo: "P01ALG016", nombre: "ALGROW", unidad: "LTR", ingrediente: "", stock: 23.55, diferencias: 2.45, stockFinal: 26, stockMin: 10, stockMax: 50 },
+            { codigo: "P01ATO003", nombre: "ATONIK", unidad: "LTR", ingrediente: "", stock: 0.005, diferencias: -0.005, stockFinal: 0, stockMin: 0.1, stockMax: 5 },
+            { codigo: "P01BSU001", nombre: "B SUBTILIS", unidad: "LTR", ingrediente: "", stock: 3, diferencias: 0, stockFinal: 3, stockMin: 2, stockMax: 20 },
+            { codigo: "P01BEA001", nombre: "BEAUMET 70 WP", unidad: "KGM", ingrediente: "", stock: 0.37, diferencias: -0.12, stockFinal: 0.25, stockMin: 0.5, stockMax: 5 }
+        ];
+
+        let movimientos = [];
+        let productos = [];
+        let alertas = [];
+
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            inicializarDatos();
+            inicializarEventListeners();
+            cargarInventario();
+            actualizarDashboard();
+        });
+
+        function inicializarDatos() {
+            // Combinar todos los productos
+            productos = [
+                ...productosConvencional.map(p => ({ ...p, almacen: 'convencional', categoria: 'herbicida' })),
+                ...productosOrganico.map(p => ({ ...p, almacen: 'organico', categoria: 'organico' }))
+            ];
+
+            // Establecer fecha actual en los formularios
+            const now = new Date();
+            const fechaStr = now.toISOString().slice(0, 16);
+            document.getElementById('fecha').value = fechaStr;
+            document.getElementById('fechaMultiple').value = fechaStr;
+
+            // Cargar movimientos desde localStorage si existen
+            const movimientosGuardados = localStorage.getItem('movimientos');
+            if (movimientosGuardados) {
+                movimientos = JSON.parse(movimientosGuardados);
+            }
+
+            // Cargar alertas desde localStorage si existen
+            const alertasGuardadas = localStorage.getItem('alertas');
+            if (alertasGuardadas) {
+                alertas = JSON.parse(alertasGuardadas);
+                actualizarContadorAlertas();
+            }
+        }
+
+        function inicializarEventListeners() {
+            // Navegación del sidebar
+            document.querySelectorAll('.nav-link[data-section]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const sectionId = this.getAttribute('data-section');
+                    
+                    // Actualizar clase activa
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Mostrar sección correspondiente
+                    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                    document.getElementById(sectionId).classList.add('active');
+                });
+            });
+
+            // Modal de movimiento único
+            const modalMovimiento = document.getElementById('modalMovimiento');
+            modalMovimiento.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const tipo = button.getAttribute('data-tipo');
+                document.getElementById('movimientoTipoAlmacen').value = tipo;
+                cargarProductosEnSelect('selectProducto', tipo);
+            });
+
+            // Modal de múltiples movimientos
+            const modalMovimientoMultiple = document.getElementById('modalMovimientoMultiple');
+            modalMovimientoMultiple.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const tipo = button.getAttribute('data-tipo');
+                document.getElementById('movimientoMultipleTipoAlmacen').value = tipo;
+                
+                // Cargar productos en el primer select
+                const firstSelect = document.querySelector('.select-producto-multiple');
+                cargarProductosEnSelect(firstSelect, tipo);
+            });
+
+            // Guardar movimiento único
+            document.getElementById('btnGuardarMovimiento').addEventListener('click', function() {
+                guardarMovimiento();
+            });
+
+            // Guardar múltiples movimientos
+            document.getElementById('btnGuardarMovimientoMultiple').addEventListener('click', function() {
+                guardarMovimientosMultiples();
+            });
+
+            // Guardar producto
+            document.getElementById('btnGuardarProducto').addEventListener('click', function() {
+                guardarProducto();
+            });
+
+            // Importar CSV convencional
+            document.getElementById('btnImportConvencional').addEventListener('click', function() {
+                document.getElementById('fileInput').setAttribute('data-tipo', 'convencional');
+                document.getElementById('fileInput').click();
+            });
+
+            // Importar CSV orgánico
+            document.getElementById('btnImportOrganico').addEventListener('click', function() {
+                document.getElementById('fileInput').setAttribute('data-tipo', 'organico');
+                document.getElementById('fileInput').click();
+            });
+
+            // Búsqueda en inventario convencional
+            document.getElementById('btnSearchConvencional').addEventListener('click', function() {
+                buscarEnInventario('convencional');
+            });
+
+            // Búsqueda en inventario orgánico
+            document.getElementById('btnSearchOrganico').addEventListener('click', function() {
+                buscarEnInventario('organico');
+            });
+
+            // Búsqueda en movimientos
+            document.getElementById('btnSearchMovimientos').addEventListener('click', function() {
+                buscarMovimientos();
+            });
+
+            // Búsqueda en productos
+            document.getElementById('btnSearchProductos').addEventListener('click', function() {
+                buscarProductos();
+            });
+
+            // Configurar drop zone
+            const dropZone = document.getElementById('dropZone');
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.style.backgroundColor = '#e9e9e9';
+            });
+            dropZone.addEventListener('dragleave', function() {
+                this.style.backgroundColor = '#f9f9f9';
+            });
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.style.backgroundColor = '#f9f9f9';
+                if (e.dataTransfer.files.length) {
+                    handleFileSelect(e.dataTransfer.files);
+                }
+            });
+        }
+
+        function cargarInventario() {
+            // Cargar inventario convencional
+            const tbodyConvencional = document.getElementById('tbodyConvencional');
+            tbodyConvencional.innerHTML = '';
+            
+            productosConvencional.forEach(producto => {
+                const estado = calcularEstadoStock(producto.stock, producto.stockMin, producto.stockMax);
+                const estadoClass = estado === 'Bajo' ? 'stock-low' : (estado === 'Agotado' ? 'stock-zero' : 'stock-ok');
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${producto.codigo}</td>
+                    <td>${producto.nombre}</td>
+                    <td>${producto.unidad}</td>
+                    <td>${producto.ingrediente}</td>
+                    <td class="${estadoClass}">${producto.stock}</td>
+                    <td>${producto.stockMin}</td>
+                    <td>${producto.stockMax}</td>
+                    <td><span class="badge bg-${estado === 'OK' ? 'success' : (estado === 'Bajo' ? 'warning' : 'danger')}">${estado}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
+                    </td>
+                `;
+                tbodyConvencional.appendChild(tr);
+            });
+            
+            document.getElementById('loadingConvencional').style.display = 'none';
+            
+            // Cargar inventario orgánico
+            const tbodyOrganico = document.getElementById('tbodyOrganico');
+            tbodyOrganico.innerHTML = '';
+            
+            productosOrganico.forEach(producto => {
+                const estado = calcularEstadoStock(producto.stockFinal, producto.stockMin, producto.stockMax);
+                const estadoClass = estado === 'Bajo' ? 'stock-low' : (estado === 'Agotado' ? 'stock-zero' : 'stock-ok');
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${producto.codigo}</td>
+                    <td>${producto.nombre}</td>
+                    <td>${producto.unidad}</td>
+                    <td>${producto.ingrediente}</td>
+                    <td>${producto.stock}</td>
+                    <td>${producto.stockMin}</td>
+                    <td>${producto.stockMax}</td>
+                    <td>${producto.diferencias}</td>
+                    <td class="${estadoClass}">${producto.stockFinal}</td>
+                    <td><span class="badge bg-${estado === 'OK' ? 'success' : (estado === 'Bajo' ? 'warning' : 'danger')}">${estado}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button>
+                    </td>
+                `;
+                tbodyOrganico.appendChild(tr);
+            });
+            
+            document.getElementById('loadingOrganico').style.display = 'none';
+        }
+
+        function calcularEstadoStock(stock, stockMin, stockMax) {
+            if (stock <= 0) return 'Agotado';
+            if (stock < stockMin) return 'Bajo';
+            if (stock > stockMax) return 'Exceso';
+            return 'OK';
+        }
+
+        function cargarProductosEnSelect(selectElement, tipoAlmacen) {
+            // Limpiar opciones actuales
+            selectElement.innerHTML = '<option value="">Seleccione un producto</option>';
+            
+            // Filtrar productos por tipo de almacén
+            const productosFiltrados = productos.filter(p => p.almacen === tipoAlmacen);
+            
+            // Agregar opciones al select
+            productosFiltrados.forEach(producto => {
+                const option = document.createElement('option');
+                option.value = producto.codigo;
+                option.textContent = `${producto.codigo} - ${producto.nombre}`;
+                option.setAttribute('data-stock', producto.stock);
+                selectElement.appendChild(option);
+            });
+        }
+
+        function guardarMovimiento() {
+            const tipoAlmacen = document.getElementById('movimientoTipoAlmacen').value;
+            const tipoMovimiento = document.getElementById('tipoMovimiento').value;
+            const codigoProducto = document.getElementById('selectProducto').value;
+            const cantidad = parseFloat(document.getElementById('cantidad').value);
+            const fecha = document.getElementById('fecha').value;
+            const comentario = document.getElementById('comentario').value;
+            
+            if (!codigoProducto || isNaN(cantidad) || !fecha) {
+                alert('Por favor, complete todos los campos obligatorios.');
+                return;
+            }
+            
+            // Encontrar el producto
+            const productoIndex = productos.findIndex(p => p.codigo === codigoProducto && p.almacen === tipoAlmacen);
+            if (productoIndex === -1) {
+                alert('Producto no encontrado.');
+                return;
+            }
+            
+            // Actualizar stock según el tipo de movimiento
+            if (tipoMovimiento === 'entrada') {
+                productos[productoIndex].stock += cantidad;
+            } else if (tipoMovimiento === 'salida') {
+                if (productos[productoIndex].stock < cantidad) {
+                    alert('No hay suficiente stock para realizar esta salida.');
+                    return;
+                }
+                productos[productoIndex].stock -= cantidad;
+            } else if (tipoMovimiento === 'ajuste') {
+                productos[productoIndex].stock = cantidad;
+            }
+            
+            // Registrar el movimiento
+            const movimiento = {
+                id: Date.now(),
+                fecha: new Date(fecha),
+                tipo: tipoMovimiento,
+                almacen: tipoAlmacen,
+                codigoProducto: codigoProducto,
+                cantidad: cantidad,
+                usuario: 'Usuario Actual', // En una app real, esto vendría de la sesión
+                comentario: comentario
+            };
+            
+            movimientos.push(movimiento);
+            localStorage.setItem('movimientos', JSON.stringify(movimientos));
+            
+            // Verificar alertas de stock
+            verificarAlertasStock();
+            
+            // Actualizar la interfaz
+            cargarInventario();
+            actualizarDashboard();
+            
+            // Cerrar modal y resetear formulario
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalMovimiento'));
+            modal.hide();
+            document.getElementById('formMovimiento').reset();
+            
+            alert('Movimiento registrado correctamente.');
+        }
+
+        function addMovementRow() {
+            const tabla = document.getElementById('tablaMovimientosMultiple');
+            const newRow = tabla.insertRow();
+            const tipoAlmacen = document.getElementById('movimientoMultipleTipoAlmacen').value;
+            
+            newRow.innerHTML = `
+                <td>
+                    <select class="form-select select-producto-multiple" required>
+                        <option value="">Seleccione un producto</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" step="0.001" class="form-control" required>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeMovementRow(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            
+            // Cargar productos en el nuevo select
+            const select = newRow.querySelector('.select-producto-multiple');
+            cargarProductosEnSelect(select, tipoAlmacen);
+        }
+
+        function removeMovementRow(button) {
+            const row = button.closest('tr');
+            // No permitir eliminar la última fila
+            if (document.getElementById('tablaMovimientosMultiple').rows.length > 1) {
+                row.remove();
+            }
+        }
+
+        function guardarMovimientosMultiples() {
+            const tipoAlmacen = document.getElementById('movimientoMultipleTipoAlmacen').value;
+            const tipoMovimiento = document.getElementById('tipoMovimientoMultiple').value;
+            const fecha = document.getElementById('fechaMultiple').value;
+            const comentarioGeneral = document.getElementById('comentarioMultiple').value;
+            
+            const rows = document.getElementById('tablaMovimientosMultiple').querySelectorAll('tbody tr');
+            let movimientosGuardados = 0;
+            
+            rows.forEach(row => {
+                const select = row.querySelector('.select-producto-multiple');
+                const input = row.querySelector('input[type="number"]');
+                
+                const codigoProducto = select.value;
+                const cantidad = parseFloat(input.value);
+                
+                if (!codigoProducto || isNaN(cantidad)) {
+                    return; // Saltar filas incompletas
+                }
+                
+                // Encontrar el producto
+                const productoIndex = productos.findIndex(p => p.codigo === codigoProducto && p.almacen === tipoAlmacen);
+                if (productoIndex === -1) {
+                    return;
+                }
+                
+                // Actualizar stock según el tipo de movimiento
+                if (tipoMovimiento === 'entrada') {
+                    productos[productoIndex].stock += cantidad;
+                } else if (tipoMovimiento === 'salida') {
+                    if (productos[productoIndex].stock < cantidad) {
+                        alert(`No hay suficiente stock para realizar la salida del producto ${codigoProducto}.`);
+                        return;
+                    }
+                    productos[productoIndex].stock -= cantidad;
+                } else if (tipoMovimiento === 'ajuste') {
+                    productos[productoIndex].stock = cantidad;
+                }
+                
+                // Registrar el movimiento
+                const movimiento = {
+                    id: Date.now() + movimientosGuardados, // ID único
+                    fecha: new Date(fecha),
+                    tipo: tipoMovimiento,
+                    almacen: tipoAlmacen,
+                    codigoProducto: codigoProducto,
+                    cantidad: cantidad,
+                    usuario: 'Usuario Actual',
+                    comentario: comentarioGeneral
+                };
+                
+                movimientos.push(movimiento);
+                movimientosGuardados++;
+            });
+            
+            if (movimientosGuardados > 0) {
+                localStorage.setItem('movimientos', JSON.stringify(movimientos));
+                
+                // Verificar alertas de stock
+                verificarAlertasStock();
+                
+                // Actualizar la interfaz
+                cargarInventario();
+                actualizarDashboard();
+                
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalMovimientoMultiple'));
+                modal.hide();
+                
+                alert(`${movimientosGuardados} movimientos registrados correctamente.`);
+            } else {
+                alert('No se registraron movimientos. Verifique que todos los campos estén completos.');
+            }
+        }
+
+        function guardarProducto() {
+            const id = document.getElementById('productoId').value;
+            const codigo = document.getElementById('codigoProducto').value;
+            const nombre = document.getElementById('nombreProducto').value;
+            const categoria = document.getElementById('categoriaProducto').value;
+            const unidad = document.getElementById('unidadProducto').value;
+            const almacen = document.getElementById('almacenProducto').value;
+            const ingrediente = document.getElementById('ingredienteProducto').value;
+            const stockMin = parseFloat(document.getElementById('stockMinProducto').value);
+            const stockMax = parseFloat(document.getElementById('stockMaxProducto').value);
+            const stockInicial = parseFloat(document.getElementById('stockInicialProducto').value);
+            const proveedor = document.getElementById('proveedorProducto').value;
+            const descripcion = document.getElementById('descripcionProducto').value;
+            
+            if (!codigo || !nombre || !categoria || !unidad || !almacen || isNaN(stockMin) || isNaN(stockMax) || isNaN(stockInicial)) {
+                alert('Por favor, complete todos los campos obligatorios.');
+                return;
+            }
+            
+            const producto = {
+                codigo,
+                nombre,
+                categoria,
+                unidad,
+                almacen,
+                ingrediente,
+                stock: stockInicial,
+                stockMin,
+                stockMax,
+                proveedor,
+                descripcion
+            };
+            
+            if (id) {
+                // Editar producto existente
+                const index = productos.findIndex(p => p.codigo === id && p.almacen === almacen);
+                if (index !== -1) {
+                    productos[index] = { ...productos[index], ...producto };
+                }
+            } else {
+                // Verificar si el código ya existe en el mismo almacén
+                if (productos.some(p => p.codigo === codigo && p.almacen === almacen)) {
+                    alert('Ya existe un producto con este código en el almacén seleccionado.');
+                    return;
+                }
+                
+                // Agregar nuevo producto
+                productos.push(producto);
+            }
+            
+            // Guardar en localStorage
+            localStorage.setItem('productos', JSON.stringify(productos));
+            
+            // Actualizar la interfaz
+            cargarInventario();
+            actualizarDashboard();
+            
+            // Cerrar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalProducto'));
+            modal.hide();
+            
+            alert('Producto guardado correctamente.');
+        }
+
+        function verificarAlertasStock() {
+            alertas = [];
+            
+            productos.forEach(producto => {
+                const estado = calcularEstadoStock(producto.stock, producto.stockMin, producto.stockMax);
+                
+                if (estado === 'Agotado') {
+                    alertas.push({
+                        tipo: 'stock-cero',
+                        mensaje: `El producto ${producto.codigo} - ${producto.nombre} está agotado.`,
+                        fecha: new Date(),
+                        leida: false
+                    });
+                } else if (estado === 'Bajo') {
+                    alertas.push({
+                        tipo: 'stock-bajo',
+                        mensaje: `El producto ${producto.codigo} - ${producto.nombre} tiene stock bajo (${producto.stock} ${producto.unidad}).`,
+                        fecha: new Date(),
+                        leida: false
+                    });
+                }
+            });
+            
+            localStorage.setItem('alertas', JSON.stringify(alertas));
+            actualizarContadorAlertas();
+        }
+
+        function actualizarContadorAlertas() {
+            const alertasNoLeidas = alertas.filter(a => !a.leida).length;
+            document.getElementById('alertCount').textContent = alertasNoLeidas;
+        }
+
+        function actualizarDashboard() {
+            // Actualizar contadores
+            document.getElementById('totalProductos').textContent = productos.length;
+            
+            const totalStock = productos.reduce((sum, p) => sum + p.stock, 0);
+            document.getElementById('totalStock').textContent = totalStock.toFixed(2);
+            
+            const stockBajoCount = productos.filter(p => p.stock > 0 && p.stock < p.stockMin).length;
+            document.getElementById('stockBajo').textContent = stockBajoCount;
+            
+            const stockCeroCount = productos.filter(p => p.stock <= 0).length;
+            document.getElementById('stockCero').textContent = stockCeroCount;
+            
+            // Actualizar gráficos
+            actualizarGraficos();
+            
+            // Actualizar alertas en el dashboard
+            const alertasDashboard = document.getElementById('alertasDashboard');
+            alertasDashboard.innerHTML = '';
+            
+            const alertasRecientes = alertas.slice(0, 5); // Mostrar solo las 5 más recientes
+            
+            if (alertasRecientes.length === 0) {
+                alertasDashboard.innerHTML = '<p class="text-center">No hay alertas en este momento</p>';
+            } else {
+                alertasRecientes.forEach(alerta => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = `alert-stock ${alerta.tipo === 'stock-cero' ? 'bg-danger text-white' : 'bg-warning'}`;
+                    alertDiv.innerHTML = `
+                        <div class="d-flex justify-content-between">
+                            <span>${alerta.mensaje}</span>
+                            <small>${new Date(alerta.fecha).toLocaleDateString()}</small>
+                        </div>
+                    `;
+                    alertasDashboard.appendChild(alertDiv);
+                });
+            }
+        }
+
+        function actualizarGraficos() {
+            // Gráfico de distribución por categoría
+            const categorias = {};
+            productos.forEach(p => {
+                if (!categorias[p.categoria]) {
+                    categorias[p.categoria] = 0;
+                }
+                categorias[p.categoria] += p.stock;
+            });
+            
+            const categoriaCtx = document.getElementById('categoriaChart').getContext('2d');
+            new Chart(categoriaCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(categorias),
+                    datasets: [{
+                        data: Object.values(categorias),
+                        backgroundColor: ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6', '#1abc9c', '#34495e']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+            
+            // Gráfico de movimientos mensuales (ejemplo)
+            const movimientosCtx = document.getElementById('movimientosChart').getContext('2d');
+            new Chart(movimientosCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Entradas',
+                        data: [12, 19, 8, 15, 14, 16],
+                        backgroundColor: '#2ecc71'
+                    }, {
+                        label: 'Salidas',
+                        data: [8, 12, 6, 9, 11, 13],
+                        backgroundColor: '#e74c3c'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function buscarEnInventario(tipo) {
+            const searchTerm = tipo === 'convencional' 
+                ? document.getElementById('searchConvencional').value.toLowerCase()
+                : document.getElementById('searchOrganico').value.toLowerCase();
+            
+            const tbody = tipo === 'convencional' 
+                ? document.getElementById('tbodyConvencional')
+                : document.getElementById('tbodyOrganico');
+            
+            const rows = tbody.getElementsByTagName('tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                let found = false;
+                
+                for (let j = 0; j < cells.length; j++) {
+                    if (cells[j].textContent.toLowerCase().includes(searchTerm)) {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                rows[i].style.display = found ? '' : 'none';
+            }
+        }
+
+        function buscarMovimientos() {
+            // Implementar búsqueda en movimientos
+            console.log('Búsqueda en movimientos');
+        }
+
+        function buscarProductos() {
+            // Implementar búsqueda en productos
+            console.log('Búsqueda en productos');
+        }
+
+        function exportToCSV(tipo) {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            let headers = [];
+            let data = [];
+            
+            if (tipo === 'convencional') {
+                headers = ["CÓDIGO", "PRODUCTO", "U/M", "INGREDIENTE ACTIVO", "STOCK", "STOCK MÍN", "STOCK MÁX"];
+                data = productosConvencional.map(p => [
+                    p.codigo, p.nombre, p.unidad, p.ingrediente, p.stock, p.stockMin, p.stockMax
+                ]);
+            } else {
+                headers = ["CÓDIGO", "PRODUCTO", "U/M", "INGREDIENTE ACTIVO", "STOCK", "DIFERENCIAS", "STOCK FINAL", "STOCK MÍN", "STOCK MÁX"];
+                data = productosOrganico.map(p => [
+                    p.codigo, p.nombre, p.unidad, p.ingrediente, p.stock, p.diferencias, p.stockFinal, p.stockMin, p.stockMax
+                ]);
+            }
+            
+            csvContent += headers.join(",") + "\n";
+            data.forEach(row => {
+                csvContent += row.join(",") + "\n";
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `inventario_${tipo}_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function handleFileSelect(files) {
+            const file = files[0];
+            if (!file) return;
+            
+            const tipo = document.getElementById('fileInput').getAttribute('data-tipo');
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                if (file.name.endsWith('.csv')) {
+                    // Procesar CSV
+                    Papa.parse(content, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            importarCSV(results.data, tipo);
+                        }
+                    });
+                } else if (file.name.endsWith('.json')) {
+                    // Procesar JSON (respaldo)
+                    try {
+                        const data = JSON.parse(content);
+                        restaurarRespaldo(data);
+                    } catch (error) {
+                        alert('Error al procesar el archivo de respaldo: ' + error.message);
+                    }
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+
+        function importarCSV(data, tipo) {
+            // Implementar importación de CSV según el formato esperado
+            alert(`Se importaron ${data.length} registros para el almacén ${tipo}`);
+            // Aquí iría la lógica para actualizar el inventario con los datos del CSV
+        }
+
+        function createBackup() {
+            const backupData = {
+                productos: productos,
+                movimientos: movimientos,
+                alertas: alertas,
+                fecha: new Date()
+            };
+            
+            const dataStr = JSON.stringify(backupData);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `respaldo_inventario_${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function restaurarRespaldo(data) {
+            if (confirm('¿Está seguro de que desea restaurar el respaldo? Se sobrescribirán todos los datos actuales.')) {
+                if (data.productos) productos = data.productos;
+                if (data.movimientos) movimientos = data.movimientos;
+                if (data.alertas) alertas = data.alertas;
+                
+                localStorage.setItem('productos', JSON.stringify(productos));
+                localStorage.setItem('movimientos', JSON.stringify(movimientos));
+                localStorage.setItem('alertas', JSON.stringify(alertas));
+                
+                cargarInventario();
+                actualizarDashboard();
+                
+                alert('Respaldo restaurado correctamente.');
+            }
+        }
+
+        function generateReport() {
+            // Implementar generación de reportes
+            alert('Generando reporte...');
+        }
+
+        function markAllAlertsAsRead() {
+            alertas.forEach(a => a.leida = true);
+            localStorage.setItem('alertas', JSON.stringify(alertas));
+            actualizarContadorAlertas();
+            alert('Todas las alertas marcadas como leídas.');
+        }
+
+        function saveConfig() {
+            // Implementar guardado de configuración
+            alert('Configuración guardada correctamente.');
+        }
+    </script>
+</body>
+</html>
